@@ -29,8 +29,6 @@ namespace AnimeshitEquipManager.Patches
 			if (!Enum.TryParse(slotAddress.Slot.ID, out EquipmentSlot slot)) return;
 			if (!Visibility.Slots.Contains(slot)) return;
 
-			// 游戏语言在 Awake 之后才加载完成，这里在构建菜单前按当前语言刷新一次；
-			// 语言未变化时 Refresh() 只做一次属性读 + 字符串比较，开销可忽略。
 			L10n.Refresh();
 
 			Add(__instance, __result, Audience.Player, slot);

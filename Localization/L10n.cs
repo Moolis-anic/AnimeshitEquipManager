@@ -59,6 +59,69 @@ namespace AnimeshitEquipManager.Localization
 		}
 
 		/// <summary>
+		/// A (section, key) pair that a language file may use for the config entry.
+		/// </summary>
+		internal struct ConfigNamePair
+		{
+			internal readonly string Section;
+			internal readonly string Key;
+
+			internal ConfigNamePair(string section, string key)
+			{
+				Section = section;
+				Key = key;
+			}
+		}
+
+		/// <summary>
+		/// Every (section, key) pair the shipped language files can use for the config entry.
+		/// Used to adopt an already existing config section no matter which language made it.
+		/// </summary>
+		internal static List<ConfigNamePair> GetConfigNameCandidates()
+		{
+			var result = new List<ConfigNamePair>();
+			var seen = new HashSet<string>(StringComparer.Ordinal);
+
+			LanguageOptions fallback = EmbeddedEnglishLanguageProvider.Fallback;
+			if (fallback != null)
+			{
+				AddCandidate(result, seen, fallback.ConfigName, fallback.ConfigEnableSub1);
+			}
+
+			try
+			{
+				string dir = GetLangDirectory();
+				if (Directory.Exists(dir))
+				{
+					foreach (string file in Directory.GetFiles(dir, "*.json"))
+					{
+						try
+						{
+							var options = JsonConvert.DeserializeObject<LanguageOptions>(
+								File.ReadAllText(file));
+							if (options != null)
+							{
+								AddCandidate(result, seen, options.ConfigName, options.ConfigEnableSub1);
+							}
+						}
+						catch { }
+					}
+				}
+			}
+			catch { }
+
+			return result;
+		}
+
+		private static void AddCandidate(
+			List<ConfigNamePair> result, HashSet<string> seen, string section, string key)
+		{
+			if (string.IsNullOrEmpty(section) || string.IsNullOrEmpty(key)) return;
+			if (!seen.Add(section)) return;
+			result.Add(new ConfigNamePair(section, key));
+		}
+
+		/// <summary>
 		/// Re-detect the game language and reload the language file if it changed.
 		/// Cheap when the language has not changed.
 		/// </summary>
@@ -296,7 +359,7 @@ namespace AnimeshitEquipManager.Localization
 						return v;
 					}
 				}
-				catch { /* 继续 */ }
+				catch { /* Continue */ }
 			}
 
 			// 3) Instance field _culture
@@ -313,7 +376,7 @@ namespace AnimeshitEquipManager.Localization
 						return v;
 					}
 				}
-				catch { /* 继续 */ }
+				catch { /* Continue */ }
 			}
 
 			// 4) Backward compatibility: Legacy property names
@@ -356,13 +419,7 @@ namespace AnimeshitEquipManager.Localization
 			{
 				return "chs";
 			}
-			if (lower.StartsWith("zh-") || lower.StartsWith("ch-")) return "chs";
 			if (lower.StartsWith("zh") || lower.StartsWith("ch")) return "chs";
-			// if (lower.Contains("chinese") || lower.Contains("simplified") ||
-			// 	lower.Contains("traditional") || lower.Contains("hans") || lower.Contains("hant"))
-			// {
-			// 	return "chs";
-			// }
 			return "en";
 		}
 

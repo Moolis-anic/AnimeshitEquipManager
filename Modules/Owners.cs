@@ -56,7 +56,7 @@ namespace AnimeshitEquipManager.Modules
 				return audience;
 			}
 
-			// player == null 的分支（UI 中的玩家 Profile）
+			// player == null (view._playerBody == null)
 			ItemUiContext instance = ItemUiContext.Instance;
 			InventoryEquipment inventoryEquipment2;
 			if (instance == null)

@@ -8,9 +8,9 @@ using HarmonyLib;
 namespace AnimeshitEquipManager.Modules
 {
 	/// <summary>
-	/// 通过反射与 PitFireTeam（pitTeam）插件交互，识别队友 Player。
-	/// pitTeam 队友的 Player 是原版 EFT.Player，仅通过 pitTeam.Modules.BossPlayers._followersByProfileId 索引。
-	/// 未加载 pitTeam 时一切判定返回 false，功能自动降级。
+	/// communicate with PitFireTeam using System.Reflection, recognize Player。
+	/// pitTeam teammate Player is EFT.Player, only through pitTeam.Modules.BossPlayers._followersByProfileId.
+	/// unload pitTeam will break the teammate recognition, but will not crash the game.
 	/// </summary>
 	internal static class PitTeamInterop
 	{
@@ -18,7 +18,7 @@ namespace AnimeshitEquipManager.Modules
 		private const string InstanceMemberName  = "Instance";
 		private const string FollowersFieldName  = "_followersByProfileId";
 
-		// 探测失败时的重试节流（毫秒）。避免插件早于 pitTeam 加载时永久锁死。
+		// Avoid probing too frequently, because pitTeam may not be initialized yet, and reflection may throw exceptions.
 		private const int ProbeCooldownMs = 2000;
 
 		private static PropertyInfo _instanceProperty;
@@ -31,7 +31,7 @@ namespace AnimeshitEquipManager.Modules
 		private static bool _dumpedNonEmptyFollowers;
 		private static bool _loggedNullInstance;
 
-		/// <summary>pitTeam 存在且反射成员已解析成功。</summary>
+		/// <summary>pitTeam available and parsed successfully</summary>
 		internal static bool Available
 		{
 			get
@@ -65,7 +65,7 @@ namespace AnimeshitEquipManager.Modules
 				return;
 			}
 
-			// 先试静态属性（pitTeam 使用 public static BossPlayers Instance），再试静态字段兼容旧版。
+			// 1) Static property Instance
 			_instanceProperty = t.GetProperty(InstanceMemberName,
 				BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
 			if (_instanceProperty == null)
@@ -127,8 +127,8 @@ namespace AnimeshitEquipManager.Modules
 
 			if (dict == null) return false;
 
-			// 策略 1：直接用 player.ProfileId 命中 key
-			// （pitTeam 写入点：_followersByProfileId[bot.ProfileId] = _follower）。
+			// Strategy 1: Directly check if the key exists in the dictionary.
+			// _followersByProfileId[bot.ProfileId] = _follower
 			try
 			{
 				if (dict.Contains(profileId))
@@ -137,9 +137,9 @@ namespace AnimeshitEquipManager.Modules
 					return true;
 				}
 			}
-			catch { /* key 命中失败，继续扫描 value */ }
+			catch { /* key not found in value */ }
 
-			// 策略 2：扫描 value，反射匹配 BotOwner.ProfileId / Player 引用。
+			// Strategy 2: Scan values, use reflection to match BotOwner.ProfileId / Player references.
 			bool matched = ScanValues(dict, player, profileId);
 			DiagnoseFollowers(dict, profileId, matched);
 			return matched;
@@ -169,7 +169,7 @@ namespace AnimeshitEquipManager.Modules
 				string ownerProfileId = ReadStringMember(owner, "ProfileId");
 				if (!string.IsNullOrEmpty(ownerProfileId) && ownerProfileId == profileId) return true;
 
-				// BotOwner.GetPlayer 通常暴露 EFT.Player。
+				// BotOwner.GetPlayer exposed EFT.Player usually
 				object ownerPlayer = ReadMember(owner, "GetPlayer") ?? ReadMember(owner, "Player");
 				if (ReferenceEquals(ownerPlayer, player)) return true;
 			}

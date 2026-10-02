@@ -7,7 +7,7 @@ using HarmonyLib;
 
 namespace AnimeshitEquipManager
 {
-	[BepInPlugin("com.animeshit.equipmanager", "Animeshit Equip Manager", "1.0.2")]
+	[BepInPlugin("com.animeshit.equipmanager", "Animeshit Equip Manager", "1.0.3")]
 	public sealed class EquipManagerPlugin : BaseUnityPlugin
 	{
 		private void Awake()
@@ -21,11 +21,13 @@ namespace AnimeshitEquipManager
 			}
 
 			BotAppearanceControl.Bind(base.Config);
+			L10n.LanguageChanged += BotAppearanceControl.ApplyLocalizedNames;
 			L10n.LanguageChanged += BotAppearanceControl.ApplyLocalizedDescription;
 			PitTeamInterop.Probe();
 
-			// Clear hidden status。
-			// 本地化刷新改由右键菜单构建前触发，因为游戏语言在 Awake 之后才加载完成。
+			// Clear hidden status
+			// Localization refresh is triggered before the right-click menu is built
+			// because the game language is only loaded after Awake.
 			Visibility.Reset();
 
 			this.harmony = new Harmony("com.animeshit.equipmanager");
@@ -49,10 +51,28 @@ namespace AnimeshitEquipManager
 		{
 			Visibility.Reset();
 			BotAppearanceControl.Unbind();
+			L10n.LanguageChanged -= BotAppearanceControl.ApplyLocalizedNames;
 			L10n.LanguageChanged -= BotAppearanceControl.ApplyLocalizedDescription;
 			Harmony harmony = this.harmony;
 			if (harmony == null) return;
 			harmony.UnpatchSelf();
+		}
+
+		private int _nextLanguageCheck;
+
+		private void Update()
+		{
+			// Poll the game language so the localized config section/key and description are
+			// applied as soon as the game finishes loading its language (Awake is too early).
+			int now = Environment.TickCount;
+			if (unchecked(now - _nextLanguageCheck) < 2000) return;
+			_nextLanguageCheck = now;
+
+			try { L10n.Refresh(); }
+			catch (Exception ex)
+			{
+				EquipManagerPlugin.Log?.LogWarning("L10n.Refresh failed: " + ex.Message);
+			}
 		}
 
 		internal static ManualLogSource Log;
