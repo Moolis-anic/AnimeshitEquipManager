@@ -1,0 +1,21 @@
+﻿{
+  "Show": "显示",
+  "Hide": "隐藏",
+  "Appearance": "外观",
+  "AudiencePlayer": "玩家",
+  "AudienceAI": "AI",
+  "AudienceTeammate": "队友",
+  "Slots": {
+    "4": "背包",
+    "6": "胸挂",
+    "7": "护甲",
+    "9": "眼镜",
+    "10": "面罩",
+    "11": "头盔",
+    "12": "耳机",
+    "14": "臂章"
+  },
+  "ConfigName": "AI 服装和语音",
+  "ConfigEnableSub1": "AnimeShit",
+  "ConfigEnableAIDesc": "开启：AI Bot 使用二次元角色模型和语音。关闭：保留服务端原本生成的模型和语音。设置会保存，并在之后生成 Bot 时生效；已在场的 AI 不会立即变身。完整应用建议进入下一局。"
+}
