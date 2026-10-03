@@ -23,6 +23,7 @@ namespace AnimeshitEquipManager
 			BotAppearanceControl.Bind(base.Config);
 			L10n.LanguageChanged += BotAppearanceControl.ApplyLocalizedNames;
 			L10n.LanguageChanged += BotAppearanceControl.ApplyLocalizedDescription;
+			Visibility.Bind(base.Config);
 			PitTeamInterop.Probe();
 
 			// Clear hidden status
@@ -36,7 +37,7 @@ namespace AnimeshitEquipManager
 				this.harmony.PatchAll(typeof(EquipManagerPlugin).Assembly);
 				EquipManagerPlugin.Log.LogInfo(
 					"SPT 4.1.6 equipment visibility ready. 8 slots x player/AI/teammate, " +
-					"all visible on launch. Right-click equipped gear to toggle each audience.");
+					"config default is hidden. Right-click equipped gear to toggle each audience.");
 			}
 			catch (Exception ex)
 			{
