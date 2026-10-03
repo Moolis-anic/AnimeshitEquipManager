@@ -22,6 +22,9 @@ namespace AnimeshitEquipManager
 		/// <summary>Description text for the AI module config entry.</summary>
 		public string ConfigEnableAIDesc { get; set; }
 
+		/// <summary>Section title of the per-slot audience selection.</summary>
+		public string ConfigSlotGroup { get; set; }
+
 		public string ConfigName { get; set; }
 
 		public string ConfigEnableSub1 { get; set; }

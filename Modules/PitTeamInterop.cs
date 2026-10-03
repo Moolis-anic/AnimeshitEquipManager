@@ -41,6 +41,34 @@ namespace AnimeshitEquipManager.Modules
 			}
 		}
 
+		/// <summary>
+		/// pitTeam available and its singleton instance already created. Load ordering only
+		/// guarantees the assembly is loaded, not that BossPlayers has been instantiated.
+		/// </summary>
+		internal static bool Ready
+		{
+			get
+			{
+				EnsureInit(false);
+				if (!_resolved) return false;
+
+				object instance;
+				return TryGetInstance(out instance) && instance != null;
+			}
+		}
+
+		private static bool TryGetInstance(out object instance)
+		{
+			instance = null;
+			try
+			{
+				if (_instanceProperty != null) instance = _instanceProperty.GetValue(null);
+				else if (_instanceField != null) instance = _instanceField.GetValue(null);
+			}
+			catch { return false; }
+			return true;
+		}
+
 		internal static void Probe()
 		{
 			EnsureInit(true);
@@ -90,6 +118,30 @@ namespace AnimeshitEquipManager.Modules
 			LogInfo("pitTeam detected: teammate recognition enabled via BossPlayers._followersByProfileId.");
 		}
 
+		/// <summary>
+		/// True when PitFireTeam knows the profile id as one of its followers. Used for previews
+		/// that are not backed by a live Player, such as the team profile screen, where the
+		/// follower dictionary is the only place the teammate is known.
+		/// </summary>
+		internal static bool IsTeammateProfile(string profileId)
+		{
+			if (string.IsNullOrEmpty(profileId)) return false;
+
+			EnsureInit(false);
+			if (!_resolved) return false;
+
+			object instance;
+			if (!TryGetInstance(out instance) || instance == null) return false;
+
+			IDictionary dict;
+			try { dict = _followersField.GetValue(instance) as IDictionary; }
+			catch { return false; }
+			if (dict == null) return false;
+
+			try { return dict.Contains(profileId); }
+			catch { return false; }
+		}
+
 		internal static bool IsTeammate(Player player)
 		{
 			if (player == null) return false;
@@ -97,13 +149,7 @@ namespace AnimeshitEquipManager.Modules
 			if (!_resolved) return false;
 
 			object instance;
-			try
-			{
-				instance = _instanceProperty != null
-					? _instanceProperty.GetValue(null)
-					: _instanceField.GetValue(null);
-			}
-			catch { return false; }
+			if (!TryGetInstance(out instance)) return false;
 
 			if (instance == null)
 			{

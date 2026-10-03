@@ -15,6 +15,7 @@
     "12": "耳机",
     "14": "臂章"
   },
+  "ConfigSlotGroup": "装备插槽",
   "ConfigName": "AI 服装和语音",
   "ConfigEnableSub1": "AnimeShit",
   "ConfigEnableAIDesc": "开启：AI Bot 使用二次元角色模型和语音。关闭：保留服务端原本生成的模型和语音。设置会保存，并在之后生成 Bot 时生效；已在场的 AI 不会立即变身。完整应用建议进入下一局。"

@@ -122,6 +122,53 @@ namespace AnimeshitEquipManager.Localization
 		}
 
 		/// <summary>
+		/// Every shipped language bundle (embedded English plus each lang/*.json file).
+		/// Used to recognize config sections that were created under another language.
+		/// </summary>
+		internal static List<LanguageOptions> GetAllLanguageOptions()
+		{
+			var result = new List<LanguageOptions>();
+			var seen = new HashSet<string>(StringComparer.Ordinal);
+
+			AddOptions(result, seen, EmbeddedEnglishLanguageProvider.Fallback);
+
+			try
+			{
+				string dir = GetLangDirectory();
+				if (Directory.Exists(dir))
+				{
+					foreach (string file in Directory.GetFiles(dir, "*.json"))
+					{
+						try
+						{
+							var options = JsonConvert.DeserializeObject<LanguageOptions>(
+								File.ReadAllText(file));
+							AddOptions(result, seen, options);
+						}
+						catch { }
+					}
+				}
+			}
+			catch { }
+
+			return result;
+		}
+
+		private static void AddOptions(
+			List<LanguageOptions> result, HashSet<string> seen, LanguageOptions options)
+		{
+			if (options == null) return;
+
+			string marker = (options.ConfigName ?? string.Empty) + "\u0001" +
+				(options.AudiencePlayer ?? string.Empty) + "\u0001" +
+				(options.AudienceAI ?? string.Empty) + "\u0001" +
+				(options.AudienceTeammate ?? string.Empty);
+			if (!seen.Add(marker)) return;
+
+			result.Add(options);
+		}
+
+		/// <summary>
 		/// Re-detect the game language and reload the language file if it changed.
 		/// Cheap when the language has not changed.
 		/// </summary>
@@ -213,6 +260,7 @@ namespace AnimeshitEquipManager.Localization
 				AudienceAI = user.AudienceAI ?? fallback.AudienceAI,
 				AudienceTeammate = user.AudienceTeammate ?? fallback.AudienceTeammate,
 				Slots = MergeSlots(fallback.Slots, user.Slots),
+				ConfigSlotGroup = user.ConfigSlotGroup ?? fallback.ConfigSlotGroup,
 				ConfigName = user.ConfigName ?? fallback.ConfigName,
 				ConfigEnableSub1 = user.ConfigEnableSub1 ?? fallback.ConfigEnableSub1,
 				ConfigEnableAIDesc = user.ConfigEnableAIDesc ?? fallback.ConfigEnableAIDesc,

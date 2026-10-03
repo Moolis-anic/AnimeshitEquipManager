@@ -7,7 +7,8 @@ using HarmonyLib;
 
 namespace AnimeshitEquipManager
 {
-	[BepInPlugin("com.animeshit.equipmanager", "Animeshit Equip Manager", "1.0.3")]
+	[BepInPlugin("com.animeshit.equipmanager", "Animeshit Equip Manager", "1.0.7")]
+	[BepInDependency("xyz.pit.fireteam", BepInDependency.DependencyFlags.SoftDependency)]
 	public sealed class EquipManagerPlugin : BaseUnityPlugin
 	{
 		private void Awake()
@@ -23,6 +24,7 @@ namespace AnimeshitEquipManager
 			BotAppearanceControl.Bind(base.Config);
 			L10n.LanguageChanged += BotAppearanceControl.ApplyLocalizedNames;
 			L10n.LanguageChanged += BotAppearanceControl.ApplyLocalizedDescription;
+			L10n.LanguageChanged += Visibility.RebindForLanguage;
 			Visibility.Bind(base.Config);
 			PitTeamInterop.Probe();
 
@@ -54,6 +56,7 @@ namespace AnimeshitEquipManager
 			BotAppearanceControl.Unbind();
 			L10n.LanguageChanged -= BotAppearanceControl.ApplyLocalizedNames;
 			L10n.LanguageChanged -= BotAppearanceControl.ApplyLocalizedDescription;
+			L10n.LanguageChanged -= Visibility.RebindForLanguage;
 			Harmony harmony = this.harmony;
 			if (harmony == null) return;
 			harmony.UnpatchSelf();
@@ -74,6 +77,10 @@ namespace AnimeshitEquipManager
 			{
 				EquipManagerPlugin.Log?.LogWarning("L10n.Refresh failed: " + ex.Message);
 			}
+
+			// Re-resolve tracked views so the persisted settings apply without waiting for a
+			// raid or a manual toggle.
+			Visibility.Reconcile();
 		}
 
 		internal static ManualLogSource Log;

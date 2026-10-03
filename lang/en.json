@@ -15,6 +15,7 @@
     "12": " Earpiece",
     "14": " Armband"
   },
+  "ConfigSlotGroup": "Equipment Slot",
   "ConfigName": "AI Module & Voice",
   "ConfigEnableSub1": "Animeshit",
   "ConfigEnableAIDesc": "On: AI bots use the Animeshit anime model and voice. Off: keep the server-generated model and voice. The setting is saved and applies to bots generated afterwards; already-spawned AI will not transform immediately. Enter the next raid for a full apply."

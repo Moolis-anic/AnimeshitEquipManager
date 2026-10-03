@@ -39,6 +39,8 @@ namespace AnimeshitEquipManager.Localization
 					{ "14", " Armband" },
 				},
 
+				ConfigSlotGroup    = "Equipment Slot",
+
 				ConfigName         = "AI Module & Voice",
 				ConfigEnableSub1   = "Animeshit",
 				ConfigEnableAIDesc = 
