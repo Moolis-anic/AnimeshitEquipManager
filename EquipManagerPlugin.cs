@@ -7,7 +7,7 @@ using HarmonyLib;
 
 namespace AnimeshitEquipManager
 {
-	[BepInPlugin("com.animeshit.equipmanager", "Animeshit Equip Manager", "1.0.7")]
+	[BepInPlugin("com.animeshit.equipmanager", "Animeshit Equip Manager", "1.1.0")]
 	[BepInDependency("xyz.pit.fireteam", BepInDependency.DependencyFlags.SoftDependency)]
 	public sealed class EquipManagerPlugin : BaseUnityPlugin
 	{
@@ -66,6 +66,10 @@ namespace AnimeshitEquipManager
 
 		private void Update()
 		{
+			// Re-resolve tracked views: unresolved ones are retried a few times per second, because a
+			// profile source is often only filled while the game builds the screen that shows it.
+			Visibility.Reconcile();
+
 			// Poll the game language so the localized config section/key and description are
 			// applied as soon as the game finishes loading its language (Awake is too early).
 			int now = Environment.TickCount;
@@ -78,9 +82,8 @@ namespace AnimeshitEquipManager
 				EquipManagerPlugin.Log?.LogWarning("L10n.Refresh failed: " + ex.Message);
 			}
 
-			// Re-resolve tracked views so the persisted settings apply without waiting for a
-			// raid or a manual toggle.
-			Visibility.Reconcile();
+			// Finish the pitTeam profile source discovery once the plugin instance is available.
+			PitTeamInterop.PollProfileSources();
 		}
 
 		internal static ManualLogSource Log;

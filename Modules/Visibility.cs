@@ -49,16 +49,15 @@ namespace AnimeshitEquipManager.Modules
 		{
 			if (audience == Audience.Unknown)
 			{
+				// Previews of unrelated players stay unknown on purpose, so they are not logged.
 				Unknown.Add(view);
-				LogOnce(view, audience, hidden);
 				return;
 			}
 
 			if (Unknown.Remove(view))
 			{
 				EquipManagerPlugin.Log?.LogInfo("[Visibility] resolved slot=" + view.EquipmentSlot +
-					" audience=" + audience + " hidden=" + hidden +
-					" | " + Owners.Describe(view));
+					" audience=" + audience + " hidden=" + hidden);
 			}
 
 			LogOnce(view, audience, hidden);
@@ -68,17 +67,15 @@ namespace AnimeshitEquipManager.Modules
 		{
 			if (_targetLogs >= MaxTargetLogs) return;
 
-			string key = view.EquipmentSlot + "|" + audience + "|" +
-				(view._playerBody != null) + "|" + Owners.RootName(view);
-			if (!TargetKeys.Add(key)) return;
+			// One line per (slot, audience, equipment): the same gear resolves the same way for every
+			// model that renders it.
+			string equipmentId = Owners.EquipmentIdOf(view);
+			if (!TargetKeys.Add(view.EquipmentSlot + "|" + audience + "|" + equipmentId)) return;
 
 			_targetLogs++;
 			EquipManagerPlugin.Log?.LogInfo("[Visibility] slot=" + view.EquipmentSlot +
-				" audience=" + audience +
-				" hidden=" + hidden +
-				" renderers=" + (view.Renderers != null ? view.Renderers.Length : 0) +
-				" hasBody=" + (view._playerBody != null) +
-				" | " + Owners.Describe(view));
+				" audience=" + audience + " hidden=" + hidden +
+				" equipment=" + (equipmentId ?? "(none)"));
 		}
 
 		private static void HideRenderer(Renderer renderer, Dictionary<Renderer, bool> states)
@@ -91,6 +88,16 @@ namespace AnimeshitEquipManager.Modules
 			renderer.forceRenderingOff = true;
 		}
 
+		private static void HideRenderers(Renderer[] renderers, Dictionary<Renderer, bool> states)
+		{
+			if (renderers == null) return;
+
+			for (int i = 0; i < renderers.Length; i++)
+			{
+				HideRenderer(renderers[i], states);
+			}
+		}
+
 		private static void Apply(PlayerBody.SlotView view)
 		{
 			Dictionary<Renderer, bool> dictionary;
@@ -98,27 +105,24 @@ namespace AnimeshitEquipManager.Modules
 			{
 				Visibility.Saved.Add(view, dictionary = new Dictionary<Renderer, bool>());
 			}
-			if (view.Renderers != null)
-			{
-				Renderer[] array = view.Renderers;
-				for (int i = 0; i < array.Length; i++)
-				{
-					Visibility.HideRenderer(array[i], dictionary);
-				}
-			}
+
+			HideRenderers(view.Renderers, dictionary);
+
 			if (view.Dresses != null)
 			{
 				foreach (Dress dress in view.Dresses)
 				{
-					if (dress != null && dress.Renderers != null)
-					{
-						Renderer[] array = dress.Renderers;
-						for (int j = 0; j < array.Length; j++)
-						{
-							Visibility.HideRenderer(array[j], dictionary);
-						}
-					}
+					if (dress != null) HideRenderers(dress.Renderers, dictionary);
 				}
+			}
+
+			// The renderer list of a slot can be rebuilt (another LOD, a dress swap, a model reuse
+			// between screens) without the view being recreated, so the whole model of the slot is
+			// hidden as well.
+			GameObject model = view.Model;
+			if (model != null)
+			{
+				HideRenderers(model.GetComponentsInChildren<Renderer>(true), dictionary);
 			}
 		}
 
@@ -224,12 +228,26 @@ namespace AnimeshitEquipManager.Modules
 		}
 
 		/// <summary>
-		/// Re-apply visibility to every tracked view. Used when ownership information may have
-		/// become available without a user action (Hideout load, raid start, polling).
+		/// Re-assert the visibility of every tracked view. Ownership information can arrive without a
+		/// user action (Hideout load, raid start, a profile screen filling its source), and the game
+		/// re-enables renderers whenever it rebuilds or re-syncs a model, so the hidden state is
+		/// verified at a fast cadence instead of being written once.
 		/// </summary>
 		internal static void Reconcile()
 		{
 			if (Views.Count == 0) return;
+
+			int now = Environment.TickCount;
+
+			// Fast while something is still unknown (a preview that has to catch up with its source)
+			// or while something is hidden (the game may have re-enabled those renderers).
+			int interval = (Unknown.Count > 0 || Saved.Count > 0)
+				? VerifyingReconcileMs
+				: ReconcileMs;
+
+			if (unchecked(now - _lastReconcileTick) < interval) return;
+			_lastReconcileTick = now;
+
 			RefreshAll();
 		}
 
@@ -610,20 +628,10 @@ namespace AnimeshitEquipManager.Modules
 
 		private static void LogConfigSummary()
 		{
-			var log = EquipManagerPlugin.Log;
-			if (log == null) return;
-
-			log.LogInfo("[Config] file: " +
+			EquipManagerPlugin.Log?.LogInfo("[Config] file: " +
 				(_config != null ? _config.ConfigFilePath : "(none)") +
 				", section=" + SectionForConfig() +
 				", entries=" + SlotSettings.Count);
-
-			foreach (SlotSetting setting in SlotSettings)
-			{
-				log.LogInfo("[Config] " + setting.Entry.Definition.Section + " / " +
-					setting.Entry.Definition.Key + " = " + DescribeMask(setting.Entry.Value) +
-					" [" + setting.Entry.Value + "]");
-			}
 		}
 
 		private static string DescribeMask(AudienceMask mask)
@@ -759,6 +767,17 @@ namespace AnimeshitEquipManager.Modules
 		private static bool _warnedConfig;
 
 		private const int MaxTargetLogs = 80;
+
+		/// <summary>Poll interval once everything is resolved and nothing is hidden.</summary>
+		private const int ReconcileMs = 2000;
+
+		/// <summary>
+		/// Verification interval while a view is unknown or hidden: the game re-enables renderers when
+		/// it rebuilds a model, so the hidden state has to be re-asserted quickly.
+		/// </summary>
+		private const int VerifyingReconcileMs = 100;
+
+		private static int _lastReconcileTick;
 		private static int _targetLogs;
 		private static readonly HashSet<string> TargetKeys = new HashSet<string>(StringComparer.Ordinal);
 

@@ -134,9 +134,9 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>
-      if not exist "$(EOTPath)\AnimeshitEquipManager" mkdir "$(EOTPath)\BepInEx\plugins\AnimeshitEquipManager"
-      copy /Y "$(TargetPath)" "$(EOTPath)\BepInEx\plugins\AnimeshitEquipManager\"
-      xcopy /Y /I /E "$(ProjectDir)lang" "$(EOTPath)\BepInEx\plugins\AnimeshitEquipManager\lang\"
+      if not exist "Z:\Sources\soft\BepInEx\plugins\AnimeshitEquipManager" mkdir "Z:\Sources\soft\BepInEx\plugins\AnimeshitEquipManager"
+      copy /Y "$(TargetPath)" "Z:\Sources\soft\BepInEx\plugins\AnimeshitEquipManager"
+      xcopy /Y /I /E "$(ProjectDir)lang" "Z:\Sources\soft\BepInEx\plugins\AnimeshitEquipManager\lang\"
 </PostBuildEvent>
   </PropertyGroup>
 </Project>
