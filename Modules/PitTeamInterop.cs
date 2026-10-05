@@ -425,14 +425,19 @@ namespace AnimeshitEquipManager.Modules
 				return false;
 			}
 
-			if (memberType.Name.IndexOf("Profile", StringComparison.OrdinalIgnoreCase) >= 0)
+			if (Mentions(memberType.Name, "profile")) return true;
+
+			// Collections of profiles carry the profile in their generic argument, while the member or
+			// type name itself (List, Dictionary) says nothing about it.
+			Type[] arguments = memberType.GetGenericArguments();
+			for (int i = 0; i < arguments.Length; i++)
 			{
-				return true;
+				if (Mentions(arguments[i].Name, "profile")) return true;
 			}
 
-			return name.IndexOf("profile", StringComparison.OrdinalIgnoreCase) >= 0 ||
-				name.IndexOf("teammate", StringComparison.OrdinalIgnoreCase) >= 0 ||
-				name.IndexOf("follower", StringComparison.OrdinalIgnoreCase) >= 0;
+			return Mentions(name, "profile") ||
+				Mentions(name, "teammate") ||
+				Mentions(name, "follower");
 		}
 
 		private static object PluginInstance()

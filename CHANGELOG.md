@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The teammate profile window and the side selection / squad previews follow the Teammate checkboxes.
 - Renaming the config group after a game language change no longer loses values or creates
   duplicate sections.
+- A teammate is no longer classified as AI while PitFireTeam's follower list is not ready yet: the
+  loaded teammate profiles are consulted as well, and AI is no longer remembered for an equipment,
+  so a teammate preview can no longer inherit AI and keep the slots that only AI is meant to show.
+- The profile behind an equipment is also looked up by member type, which covers inventory
+  controllers that expose it under a different name.
+- Teammate profiles kept in collections (`List<Profile>`, `Dictionary<...>`) are discovered too,
+  which the pre-raid squad preview depends on.
 
 ### Known issues
 

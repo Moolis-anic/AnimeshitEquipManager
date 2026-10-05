@@ -48,7 +48,13 @@ namespace AnimeshitEquipManager.Modules
 				Audience audience = AudienceOfPlayer(player);
 				if (audience != Audience.Unknown)
 				{
-					if (!string.IsNullOrEmpty(equipmentId)) EquipmentOwners[equipmentId] = audience;
+					// AI is the leftover classification: caching it onto the equipment would make every
+					// later preview of the same gear inherit it, even after the player turned out to be a
+					// PitFireTeam teammate.
+					if (audience != Audience.AI && !string.IsNullOrEmpty(equipmentId))
+					{
+						EquipmentOwners[equipmentId] = audience;
+					}
 					RememberProfile(player, audience);
 				}
 				return audience;
@@ -89,7 +95,7 @@ namespace AnimeshitEquipManager.Modules
 		}
 
 		/// <summary>
-		/// Audience of a live player: the local player, a PitFireTeam teammate, a player that was
+		/// Audience of a live player: the local player, a PitFireTeam teammates, a player that was
 		/// already registered, or an AI.
 		/// </summary>
 		private static Audience AudienceOfPlayer(Player player)
@@ -97,10 +103,24 @@ namespace AnimeshitEquipManager.Modules
 			if (player.IsYourPlayer) return Audience.Player;
 			if (PitTeamInterop.IsTeammate(player)) return Audience.Teammate;
 
+			// PitFireTeam only lists its followers while it tracks a raid. Before that, the same player
+			// is matched through the profiles PitFireTeam loaded, otherwise a teammate would stay "AI"
+			// and keep the slots that only AI is supposed to show.
+			if (!PitTeamInterop.Ready && PitTeamInterop.IsTeammateProfile(ProfileIdOf(player)))
+			{
+				return Audience.Teammate;
+			}
+
 			Owner owner;
 			if (Players.TryGetValue(player, out owner)) return owner.Audience;
 
 			return player.IsAI ? Audience.AI : Audience.Unknown;
+		}
+
+		private static string ProfileIdOf(Player player)
+		{
+			try { return player.ProfileId; }
+			catch { return null; }
 		}
 
 		/// <summary>
@@ -133,6 +153,10 @@ namespace AnimeshitEquipManager.Modules
 				if (profile == null) return;
 
 				if (!string.IsNullOrEmpty(profile.Id)) ProfileOwners[profile.Id] = audience;
+
+				// Equipment of an AI is deliberately not remembered: it is the leftover classification and
+				// would be inherited by every preview of the same gear.
+				if (audience == Audience.AI) return;
 
 				Inventory inventory = profile.Inventory;
 				InventoryEquipment equipment = inventory != null ? inventory.Equipment : null;
@@ -188,7 +212,76 @@ namespace AnimeshitEquipManager.Modules
 			string profileId = ReadId(ReadMember(owner, ProfileMemberNames));
 			if (profileId != null) return profileId;
 
+			// Inventory controllers expose the profile under names that differ between their subclasses,
+			// so the member is also searched by type.
+			profileId = ReadId(FindMemberOfType(owner, typeof(Profile)));
+			if (profileId != null) return profileId;
+
 			return ReadId(ReadMember(equipment, ProfileMemberNames));
+		}
+
+		/// <summary>
+		/// First non-null value of a member whose declared type matches, looked up on the type and its
+		/// base types. Used where the member name is not stable between game classes.
+		/// </summary>
+		private static object FindMemberOfType(object target, Type memberType)
+		{
+			if (target == null) return null;
+
+			Type type = target.GetType();
+			MemberInfo[] members;
+			if (!TypedMembers.TryGetValue(type, out members))
+			{
+				var found = new List<MemberInfo>(2);
+				for (Type current = type;
+					current != null && current != typeof(object);
+					current = current.BaseType)
+				{
+					try
+					{
+						FieldInfo[] fields = current.GetFields(BindingFlags.Public |
+							BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+						for (int i = 0; i < fields.Length; i++)
+						{
+							if (memberType.IsAssignableFrom(fields[i].FieldType)) found.Add(fields[i]);
+						}
+
+						PropertyInfo[] properties = current.GetProperties(BindingFlags.Public |
+							BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+						for (int i = 0; i < properties.Length; i++)
+						{
+							if (properties[i].CanRead && properties[i].GetIndexParameters().Length == 0 &&
+								memberType.IsAssignableFrom(properties[i].PropertyType))
+							{
+								found.Add(properties[i]);
+							}
+						}
+					}
+					catch { }
+				}
+
+				members = found.ToArray();
+				TypedMembers[type] = members;
+			}
+
+			for (int i = 0; i < members.Length; i++)
+			{
+				object value = ReadMemberValue(target, members[i]);
+				if (value != null) return value;
+			}
+			return null;
+		}
+
+		private static object ReadMemberValue(object target, MemberInfo member)
+		{
+			try
+			{
+				FieldInfo field = member as FieldInfo;
+				return field != null
+					? field.GetValue(target)
+					: ((PropertyInfo)member).GetValue(target, null);
+			}
+			catch { return null; }
 		}
 
 		private static Profile SessionProfile()
@@ -260,6 +353,7 @@ namespace AnimeshitEquipManager.Modules
 			Players = new ConditionalWeakTable<Player, Owner>();
 			EquipmentOwners.Clear();
 			ProfileOwners.Clear();
+			TypedMembers.Clear();
 		}
 
 		private static ConditionalWeakTable<Player, Owner> Players =
@@ -272,6 +366,10 @@ namespace AnimeshitEquipManager.Modules
 		/// <summary>Profile id to audience, learned from live players.</summary>
 		private static readonly Dictionary<string, Audience> ProfileOwners =
 			new Dictionary<string, Audience>();
+
+		/// <summary>Per type: members declared as a Profile, whatever their name.</summary>
+		private static readonly Dictionary<Type, MemberInfo[]> TypedMembers =
+			new Dictionary<Type, MemberInfo[]>();
 
 		// The owner/profile chain of an item is not part of this plugin's compile-time contract with
 		// the game, so the members are looked up by name.
